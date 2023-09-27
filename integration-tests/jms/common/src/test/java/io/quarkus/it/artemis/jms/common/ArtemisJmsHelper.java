@@ -69,4 +69,36 @@ public class ArtemisJmsHelper {
             Assertions.assertNull(message);
         }
     }
+
+    public void sendAndVerifyXACommit(JMSContext context, String queueName, String xaEndpoint, String endpoint) {
+        String body = createBody();
+        try (JMSContext ignored = context) {
+            context.createProducer().send(context.createQueue(queueName), body);
+        }
+
+        Response response = RestAssured.with().get(xaEndpoint);
+        Assertions.assertEquals(jakarta.ws.rs.core.Response.Status.OK.getStatusCode(), response.statusCode());
+        Assertions.assertEquals(body, response.getBody().asString());
+
+        //receive again to confirm XA commit kicked in
+        response = RestAssured.with().get(endpoint);
+        Assertions.assertEquals(jakarta.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
+                response.statusCode());
+    }
+
+    public void sendAndVerifyXARollback(JMSContext context, String queueName, String xaEndpoint, String endpoint) {
+        String body = createBody();
+        try (JMSContext ignored = context) {
+            context.createProducer().send(context.createQueue(queueName), body);
+        }
+
+        Response response = RestAssured.with().get(xaEndpoint);
+        Assertions.assertEquals(jakarta.ws.rs.core.Response.Status.OK.getStatusCode(), response.statusCode());
+        Assertions.assertEquals(body, response.getBody().asString());
+
+        //receive again to confirm XA commit kicked in
+        response = RestAssured.with().get(endpoint);
+        Assertions.assertEquals(jakarta.ws.rs.core.Response.Status.OK.getStatusCode(),
+                response.statusCode());
+    }
 }
